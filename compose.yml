@@ -1,13 +1,13 @@
 services:
-  meshlink:
-    image: rubymetro/meshlink:latest
-    container_name: meshlink
-    environment:
-      - NODENAME="My MeshLink"
-      - IP="270.0.0.0"
-      - LATITUDE=0.0
-      - LONGITUDE=-0.0
-      - PORT=5000
-      - PREFIX="/"
-      - FLOOD_ADVERT_ON_START=false
-    restart: unless-stopped
+   server:
+     build:
+       context: .
+     environment:
+       NODE_ENV: production
+       NODENAME: "MeshLink Alpha"
+       IP: "127.0.0.0"
+       LATITUDE: 0.0
+       LONGITUDE: 0.0
+       PORT: 5000
+       PREFIX: "/"
+       FLOOD_ADVERT_ON_START: false
