@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     branches:
-      - main
+      - FAFO
 
 jobs:
   build:
@@ -24,4 +24,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           target: prod
-          tags: ${{ vars.DOCKER_USERNAME }}/meshlink:latest
+          tags: ${{ vars.DOCKER_USERNAME }}/meshlink:fafo
