@@ -2,8 +2,11 @@
 //This file is responsible for creating the server and setting up the routes.
 //This file also contains the main logic for the server.
 
+import dotenv from "dotenv";
 import TCPConnection from "@liamcottle/meshcore.js/src/connection/tcp_connection.js";
 import Constants from "@liamcottle/meshcore.js/src/constants.js";
+
+dotenv.config();
 
 var enableFlood = process.env.FLOOD_ADVERT_ON_START;
 var pref = process.env.PREFIX; 
@@ -26,6 +29,7 @@ console.log("Written by Luca Thompson.");
 console.log("Version: " + ver);
 console.log("Internal MeshCore Version: " + msver);
 console.log("https://angelomesh.com/meshlink");
+console.log("Weather API provided at no cost by Meterologisk Institutt (https://www.met.no)\n");
 console.log("Starting meshlink server...\n");
 
 console.log("Connecting to MeshCore device...");
@@ -94,16 +98,19 @@ async function onContactMessageReceived(message) {
   // send it back
   //await connection.sendTextMessage(contact.publicKey, message.text, Constants.TxtTypes.Plain);
   if (message.text.startsWith(pref)) {
-    if (message.text == pref + "h" || message.text == pref + "help") {
+    if (message.text == pref + "h" || message.text == pref + "help" || message.text == pref + "h 1" || message.text == pref + "help 1") {
       try
       {
-        await sendMessage("Commands: \n" + pref + "(h)elp - Displays this message\n" + pref + "(p)ing - Ping MeshLink\n" + pref + "(e)cho - Echoes your message\n" + pref + "(w)eather - Displays the current weather\n(1/2)");
-        await sendMessage("Commands: \n" + pref + "(f)orecast - Displays weather forecast\n" + pref + "(a)bout - About MeshLink\n(2/2)");
+        await sendMessage("Commands: \n" + pref + "(h)elp [page] - Displays this message\n" + pref + "(p)ing - Ping MeshLink\n" + pref + "(e)cho - Echoes your message\n" + pref + "(w)eather - Displays the current weather\n(1/2)");
       }
       catch(e)
       {
         console.log(e);
       }
+    }
+    else if(message.text == pref + "h 2" || message.text.substring == pref + "help 2")
+    {
+      await sendMessage("Commands: \n" + pref + "(f)orecast - Displays weather forecast\n" + pref +  "(t)imer [msg] [time in seconds] - Sets a timer\n" + pref + "(a)bout - About MeshLink\n(2/2)");
     }
     else if (message.text == pref + "p" || message.text == pref + "ping") {
       var t1 = message.senderTimestamp * 1000;
