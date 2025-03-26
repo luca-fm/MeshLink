@@ -79,7 +79,7 @@ async function onContactMessageReceived(message) {
         if(msg.startsWith(" ")) msg = msg.substring(1);
         sendMessage(msg);
       }
-      if(message.startsWith(pref + "weather") || message.startsWith(pref + "w"))
+      if(message.text.startsWith(pref + "weather") || message.text.startsWith(pref + "w"))
       {
         await fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=31.433002&lon=-100.470352', {
           method: 'GET',
@@ -111,7 +111,7 @@ async function onContactMessageReceived(message) {
           sendMessage("Failed to fetch weather data. Please try again later.");
         });
       }
-      if(message.startsWith(pref + "forecast") || message.startsWith(pref + "f"))
+      if(message.text.startsWith(pref + "forecast") || message.text.startsWith(pref + "f"))
       {
         await fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=31.433002&lon=-100.470352', {
           method: 'GET',
@@ -123,17 +123,10 @@ async function onContactMessageReceived(message) {
         .then(data => {
           const timeseries = data.properties.timeseries;
           if (timeseries && timeseries.length > 0) {
-            const firstEntry = timeseries[0];
-            const entries = firstEntry.data.instant.details;
-            const temperature = Math.round((entries.air_temperature * 9/5) + 32);
-            function degreesToCardinal(degrees) {
-              const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-              const index = Math.round(degrees / 22.5) % 16;
-              return directions[index];
-            }
-
-            const windDirection = degreesToCardinal(entries.wind_from_direction);
-            sendMessage(`Temp: ${temperature}°F\nHum: ${entries.relative_humidity}%\nWind: ${Math.round(entries.wind_speed * 2.237)}mph\nWind Dir: ${windDirection}\nPrecip (1hr): ${Math.round(firstEntry.data.next_1_hours.details.precipitation_amount / 25.4)}in\nCond: ${firstEntry.data.next_1_hours.summary.symbol_code}`);
+            const sixhrs = timeseries[5];
+            const twelvehrs = timeseries[11];
+            const twentyfourhrs = timeseries[23];
+            sendMessage(`6hrs:\nTemp: ${Math.round((sixhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${sixhrs.data.next_1_hours.summary.symbol_code}\n\n12hrs:\nTemp: ${Math.round((twelvehrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twelvehrs.data.next_1_hours.summary.symbol_code}\n\n24hrs:\nTemp: ${Math.round((twentyfourhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twentyfourhrs.data.next_1_hours.summary.symbol_code}`);
           } else {
             sendMessage("Weather data is currently unavailable.");
           }
