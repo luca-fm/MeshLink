@@ -63,7 +63,7 @@ connection.on(Constants.PushCodes.MsgWaiting, async () => {
 });
 
 
-async function onContactMessageReceived(message) {)
+async function onContactMessageReceived(message) {
   console.log("Received contact message.\nSender Public Key Prefix: " + message.pubKeyPrefix + "\nMessage: " + message.text + "\n");
 
   // find first contact matching pub key prefix
