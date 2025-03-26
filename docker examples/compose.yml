@@ -1,0 +1,13 @@
+services:
+  meshlink:
+    image: rubymetro/meshlink:latest
+    container_name: meshlink
+    environment:
+      - NODENAME="Meshlink Alpha"
+      - IP="192.168.4.4"
+      - LATITUDE=31.433002
+      - LONGITUDE=-100.470352
+      - PORT=5000
+      - PREFIX="/"
+      - FLOOD_ADVERT_ON_START=false
+    restart: unless-stopped
