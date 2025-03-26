@@ -101,7 +101,7 @@ async function onContactMessageReceived(message) {
             }
 
             const windDirection = degreesToCardinal(entries.wind_from_direction);
-            sendMessage(`Temp: ${temperature}°F\nHum: ${entries.relative_humidity}%\nWind: ${Math.round(entries.wind_speed * 2.237)}mph\nWind Dir: ${windDirection}\nPrecip (1hr): ${Math.round(firstEntry.data.next_1_hours.details.precipitation_amount / 25.4)}in\nCond: ${firstEntry.data.next_1_hours.summary.symbol_code}`);
+            sendMessage(`Temp: ${temperature}°F\nHum: ${entries.relative_humidity}%\nWind: ${Math.round(entries.wind_speed * 2.237)}mph\nWind Dir: ${windDirection}\nPrecip (6hr): ${Math.round(firstEntry.data.next_6_hours.details.precipitation_amount / 25.4)}in\nCond: ${firstEntry.data.next_6_hours.summary.symbol_code}`);
           } else {
             sendMessage("Weather data is currently unavailable.");
           }
@@ -126,7 +126,7 @@ async function onContactMessageReceived(message) {
             const sixhrs = timeseries[5];
             const twelvehrs = timeseries[11];
             const twentyfourhrs = timeseries[23];
-            sendMessage(`6hrs:\nTemp: ${Math.round((sixhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${sixhrs.data.next_1_hours.summary.symbol_code}\n\n12hrs:\nTemp: ${Math.round((twelvehrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twelvehrs.data.next_1_hours.summary.symbol_code}\n\n24hrs:\nTemp: ${Math.round((twentyfourhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twentyfourhrs.data.next_1_hours.summary.symbol_code}`);
+            sendMessage(`6hrs:\nTemp: ${Math.round((sixhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${sixhrs.data.next_6_hours.summary.symbol_code}\n\n12hrs:\nTemp: ${Math.round((twelvehrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twelvehrs.data.next_6_hours.summary.symbol_code}\n\n24hrs:\nTemp: ${Math.round((twentyfourhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twentyfourhrs.data.next_6_hours.summary.symbol_code}`);
           } else {
             sendMessage("Weather data is currently unavailable.");
           }
