@@ -18,4 +18,4 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     npm ci --omit=dev
 USER node
 COPY . .
-CMD node src/index.js
+CMD node index.js
