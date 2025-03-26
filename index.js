@@ -110,7 +110,7 @@ async function onContactMessageReceived(message) {
         .then(res => res.json())
         .then(data => {
           const timeseries = data.properties.timeseries;
-          if (timeseries && timeseries.length > 0) {
+          if (timeseries && timeseries.length > 0) { //normally I am against vibe coding but I am pretty sure I was having a stroke
             const firstEntry = timeseries[0];
             const entries = firstEntry.data.instant.details;
             const temperature = Math.round((entries.air_temperature * 9 / 5) + 32);
