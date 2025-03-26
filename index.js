@@ -6,10 +6,19 @@ import TCPConnection from "@liamcottle/meshcore.js/src/connection/tcp_connection
 import Constants from "@liamcottle/meshcore.js/src/constants.js";
 
 var pref = "/";
+var ver="0.1.0";
+var msver="1.4.1";
+var lat = 31.433002;
+var lon = -100.470352;
+var ip = "192.168.4.4";
+var port = 5000;
+var nodename = "MeshLink Alpha (" + pref + "h)";
+var weatherapi = `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat}&lon=${lon}`;
 
-console.log("Starting MeshLink");
+console.log("Starting MeshLink...");
 // create tcp connection
-const connection = new TCPConnection("192.168.4.4", 5000);
+console.log("Connecting to MeshCore device...");
+const connection = new TCPConnection(ip, port);
 
 // wait until connected
 connection.on("connected", async () => {
@@ -18,9 +27,13 @@ connection.on("connected", async () => {
     console.log(`Connected to: [${connection.host}:${connection.port}]`);
 
     // send flood advert when connected
-    await connection.setAdvertName("MeshLink Alpha (" + pref + "h)");
+    console.log("Set advert name to " + nodename);
+    await connection.setAdvertName(nodename);
+    console.log("Set advert lat/lon to " + lat + ", " + lon);
+    await connection.setAdvertLatLong(lat, lon);
     //await connection.sendFloodAdvert();
-    connection.sendZeroHopAdvert();
+    console.log("Sending zero hop advert...\n");
+    await connection.sendZeroHopAdvert();
 
 });
 
@@ -43,7 +56,7 @@ connection.on(Constants.PushCodes.MsgWaiting, async () => {
 
 async function onContactMessageReceived(message) {
 
-    console.log("Received contact message.\nSender Public Key Prefix: " + message.pubKeyPrefix + "\nMessage: " + message.text);
+    console.log("Received contact message.\nSender Public Key Prefix: " + message.pubKeyPrefix + "\nMessage: " + message.text + "\n");
 
     // find first contact matching pub key prefix
     const contact = await connection.findContactByPublicKeyPrefix(message.pubKeyPrefix);
@@ -53,7 +66,7 @@ async function onContactMessageReceived(message) {
     }
 
     async function sendMessage(msg){
-      console.log("Sending message: " + msg);
+      console.log("Sending message: " + msg + "\n");
       await connection.sendTextMessage(contact.publicKey, msg, Constants.TxtTypes.Plain);
     }
 
@@ -63,28 +76,28 @@ async function onContactMessageReceived(message) {
     {
       if(message.text == pref + "h" || message.text == pref + "help")
       {
-        sendMessage("Commands: \n" + pref + "help - Displays this message\n" + pref + "ping - Ping MeshLink!\n" + pref + "echo - Echoes your message\n" + pref + "weather - Displays the current weather\n(1/2)");
-        sendMessage("Commands: \n" + pref + "forecast - Displays weather forecast\n(2/2)");
+        sendMessage("Commands: \n" + pref + "(h)elp - Displays this message\n" + pref + "(p)ing - Ping MeshLink\n" + pref + "(e)cho - Echoes your message\n" + pref + "(w)eather - Displays the current weather\n(1/2)");
+        sendMessage("Commands: \n" + pref + "(f)orecast - Displays weather forecast\n" + pref + "(a)bout - About MeshLink\n(2/2)");
       }
-      if(message.text == pref + "p" || message.text == pref + "ping")
+      else if(message.text == pref + "p" || message.text == pref + "ping")
       {
         var t1 = message.senderTimestamp * 1000;
         var t2 = Date.now()
         var diff = (t2 - t1) / 1000;
         sendMessage("Pong! Your message took approximately " + diff + " seconds to reach MeshLink, given that your node's clock is accurate.");}
-      if(message.text.startsWith(pref + "e ") || message.text.startsWith(pref + "echo "))
+      else if(message.text.startsWith(pref + "e ") || message.text.startsWith(pref + "echo "))
       {
         if(message.text.startsWith(pref + "echo ")) var msg = message.text.substring(5);
         else msg = message.text.substring(2);
         if(msg.startsWith(" ")) msg = msg.substring(1);
         sendMessage(msg);
       }
-      if(message.text.startsWith(pref + "weather") || message.text.startsWith(pref + "w"))
+      else if(message.text.startsWith(pref + "weather") || message.text == (pref + "w"))
       {
-        await fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=31.433002&lon=-100.470352', {
+        await fetch(weatherapi, {
           method: 'GET',
           headers: {
-            'User-Agent': 'MeshLink/1.0'
+            'User-Agent': `MeshLink/${ver}`
           }
         })
         .then(res => res.json())
@@ -111,12 +124,12 @@ async function onContactMessageReceived(message) {
           sendMessage("Failed to fetch weather data. Please try again later.");
         });
       }
-      if(message.text.startsWith(pref + "forecast") || message.text.startsWith(pref + "f"))
+      else if(message.text.startsWith(pref + "forecast") || message.text == (pref + "f"))
       {
-        await fetch('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=31.433002&lon=-100.470352', {
+        await fetch(weatherapi, {
           method: 'GET',
           headers: {
-            'User-Agent': 'MeshLink/0.1.0'
+            'User-Agent': `MeshLink/${ver}`
           }
         })
         .then(res => res.json())
@@ -126,7 +139,7 @@ async function onContactMessageReceived(message) {
             const sixhrs = timeseries[5];
             const twelvehrs = timeseries[11];
             const twentyfourhrs = timeseries[23];
-            sendMessage(`6hrs:\nTemp: ${Math.round((sixhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${sixhrs.data.next_6_hours.summary.symbol_code}\n\n12hrs:\nTemp: ${Math.round((twelvehrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twelvehrs.data.next_6_hours.summary.symbol_code}\n\n24hrs:\nTemp: ${Math.round((twentyfourhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twentyfourhrs.data.next_6_hours.summary.symbol_code}`);
+            sendMessage(`6hrs:\nTemp: ${Math.round((sixhrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${sixhrs.data.next_6_hours.summary.symbol_code}\n\n12hrs:\nTemp: ${Math.round((twelvehrs.data.instant.details.air_temperature * 9/5) +32)}\nCond: ${twelvehrs.data.next_6_hours.summary.symbol_code}\n\n24hrs:\nTemp: ${Math.round((twentyfourhrs.data.instant.details.air_temperature * 9/5) +32)}\nPrecip: ${twentyfourhrs.data.next_1_hours.details.precipitation_amount / 25.4}in\nCond: ${twentyfourhrs.data.next_6_hours.summary.symbol_code}`);
           } else {
             sendMessage("Weather data is currently unavailable.");
           }
@@ -136,10 +149,19 @@ async function onContactMessageReceived(message) {
           sendMessage("Failed to fetch weather data. Please try again later.");
         });
       }
+      else if (message.text == pref + "a" || message.text == pref + "about")
+      {
+        sendMessage("MeshLink is a server that runs on top of the MeshCore platform to provide some internet connected features, as well as some other utilities.");
+        sendMessage("Version: " + ver + "\nInternal MeshCore Version: " + msver + "\nMade by Luca\nhttps://angelomesh.com/meshlink");
+      }
+      else
+      {
+        sendMessage("Command not found. Use " + pref + "help for a list of commands.");
+      }
     }
     else
     {
-      sendMessage("Unknown command. Type " + pref + "help for a list of commands.");
+      sendMessage("Use " + pref + "help for a list of commands.");
     }
 
 }
