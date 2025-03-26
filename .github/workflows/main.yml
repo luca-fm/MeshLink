@@ -23,5 +23,5 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          target: prod
+          target: production
           tags: ${{ vars.DOCKER_USERNAME }}/meshlink:latest
