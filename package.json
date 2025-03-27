@@ -19,6 +19,8 @@
   "dependencies": {
     "@liamcottle/meshcore.js": "^1.3.0",
     "dotenv": "^16.4.7",
+    "mysql": "^2.18.1",
+    "mysql2": "^3.14.0",
     "serialport": "^13.0.0"
   }
 }
