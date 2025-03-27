@@ -39,6 +39,61 @@ console.log("IP: " + ip);
 console.log("Port: " + port);
 const connection = new TCPConnection(ip, port);
 
+class Timer {
+  constructor(prefix, timerName, triggerTime) {
+    this.prefix = prefix;
+    this.timerName = timerName;
+    this.triggerTime = triggerTime;
+
+    this.startMonitoring();
+  }
+
+  isTriggered(currentTime) {
+    return currentTime >= this.triggerTime;
+  }
+
+  startMonitoring() {
+    const interval = setInterval(async () => {
+      if (this.isTriggered(Math.round(Date.now() / 1000))) {
+        clearInterval(interval);
+        console.log(`Timer ${this.timerName} triggered.`);
+        // Trigger the timer
+        var pubpref = new Uint8Array(this.prefix.split(',').map(Number));
+        const contact = await connection.findContactByPublicKeyPrefix(pubpref);
+        if (!contact) {
+          console.log("Did not find contact for received message");
+          return;
+        }
+        //send message
+        console.log("Sending message to " + pubpref);
+        try {
+          await connection.sendTextMessage(contact.publicKey, "Timer " + this.timerName + " has gone off.", Constants.TxtTypes.Plain);
+        } catch (e) {
+          console.log(e);
+        }
+        var query = `DELETE FROM Timers WHERE CONTACT_PUBLIC_KEY_PREF=\'${this.prefix}\' AND TIMER_NAME=\'${this.timerName}\' AND TRIGGER_TIME=${this.triggerTime};`;
+        const con = await createDatabaseConnection();
+        await con.query(query)
+        con.end();
+
+        const thisTimer = global.timers.find(timer =>
+          timer.prefix === this.prefix &&
+          timer.timerName === this.timerName &&
+          timer.triggerTime === this.triggerTimer
+        );
+
+        if (thisTimer) {
+          const index = global.timers.indexOf(thisTimer);
+          if (index > -1) {
+            global.timers.splice(index, 1);
+          }
+          console.log("Successfully removed " + this.timerName + " from SQL database and global.timers.")
+        }
+      }
+    }, 1000); // Check every second
+  }
+}
+
 // wait until connected
 
 connection.on("connected", async () => {
@@ -57,13 +112,15 @@ connection.on("connected", async () => {
     await connection.sendFloodAdvert();
   }
   else {
-    console.log("Flood advert on boot disabled. Sending zero hop advert...\n");
+    console.log("Flood advert on start disabled. Sending zero hop advert...\n");
     await connection.sendZeroHopAdvert();
   }
 
-  setInterval(async () => { //check database for objects that require a node alert
+  fetchTimers();
+  console.log("fetching timers from SQL database")
+  /*setInterval(async () => { //check database for objects that require a node alert
     await fetchTimers();
-  }, 5000);
+  }, 5000);*/
 
 });
 
@@ -101,32 +158,27 @@ async function fetchTimers() {
       'SELECT * FROM Timers;'
     );
     con.end();
-    results.forEach(async result => {
-      if (result[0]) {
-        result.forEach(async row => {
-          var currentTime = Math.round(Date.now() / 1000); //current time in seconds
-          if (currentTime >= row.TRIGGER_TIME) {
-            console.log("Timer found, alerting node.")
-            var pubpref = new Uint8Array(row.CONTACT_PUBLIC_KEY_PREF.split(',').map(Number));
-            const contact = await connection.findContactByPublicKeyPrefix(pubpref);
-            if (!contact) {
-              console.log("Did not find contact for received message");
-              return;
-            }
-            //send message
-            console.log("Sending message to " + pubpref);
-            try {
-              await connection.sendTextMessage(contact.publicKey, "Timer " + row.TIMER_NAME + " has gone off.", Constants.TxtTypes.Plain);
-            } catch (e) {
-              console.log(e);
-            }
-            var query = `DELETE FROM Timers WHERE CONTACT_PUBLIC_KEY_PREF=\'${row.CONTACT_PUBLIC_KEY_PREF}\' AND TIMER_NAME=\'${row.TIMER_NAME}\' AND TRIGGER_TIME=${row.TRIGGER_TIME};`;
-            const con = await createDatabaseConnection();
-            await con.query(query)
-            con.end();
-          }
-        });
+    //console.log(results);
+
+    results[0].forEach(async result => {
+      //console.log(result)
+      //console.log(result.CONTACT_PUBLIC_KEY_PREF);
+      //console.log(result.TIMER_NAME);
+      //console.log(result.TRIGGER_TIME);
+      if (!global.timers) {
+        global.timers = [];
       }
+      const existingTimer = global.timers.find(function(timer) {
+        return timer.prefix === result.CONTACT_PUBLIC_KEY_PREF &&
+           timer.timerName === result.TIMER_NAME &&
+           timer.triggerTime === result.TRIGGER_TIME;
+      });
+      if (!existingTimer) {
+        console.log("Adding timer \"" + result.TIMER_NAME + "\" from " + result.CONTACT_PUBLIC_KEY_PREF);
+        const newTimer = new Timer(result.CONTACT_PUBLIC_KEY_PREF, result.TIMER_NAME, result.TRIGGER_TIME);
+        global.timers.push(newTimer);
+      }
+      else console.log("Timer with the name " + result.TIMER_NAME + " already exists in memory. skipping...")
     });
 
   } catch (e) {
@@ -135,7 +187,7 @@ async function fetchTimers() {
 }
 
 async function onContactMessageReceived(message) {
-  console.log("Received contact message.\nSender Public Key Prefix: " + message.pubKeyPrefix + "\nMessage: " + message.text + "\n");
+  console.log("\nReceived contact message.\nSender Public Key Prefix: " + message.pubKeyPrefix + "\nMessage: " + message.text + "\n");
 
   // find first contact matching pub key prefix
   const contact = await connection.findContactByPublicKeyPrefix(message.pubKeyPrefix);
@@ -235,31 +287,54 @@ async function onContactMessageReceived(message) {
       await sendMessage("Version: " + ver + "\nInternal MeshCore Version: " + msver + "\nMade by Luca\nhttps://angelomesh.com/meshlink");
     }
     else if (message.text.startsWith(pref + "t ") || message.text.startsWith(pref + "timer ")) {
-      // /timer [name] [time] [unit]
+      if (message.text == pref + "t help" || message.text == pref + "timer help") {
+        await sendMessage("Timer command usage: " + pref + "timer [name] [time] [unit] (Valid units are (s)econds, (m)inutes, and (h)ours");
+        return;
+      }
+      // argument layout: /timer [name] [time] [unit]
       var args = message.text.split(" ");
       args.splice(0, 1);
       if (args.length == 3 && typeof args[0] == "string" && typeof parseInt(args[1]) == "number" && typeof args[2] == "string") {
-        await sendMessage("Timer " + args[0] + " set for " + args[1] + " " + args[2] + ".");
 
         var currentTime = Math.floor(Date.now() / 1000); // current unix epoch time in seconds
-        console.log(currentTime);
         var triggerTime; //epoch time in seconds when the timer should go off.
+        var unit; //unit of time used as a string for the response message, since "s" and "seconds" are the same thing, etc.
 
-        if (args[2] == "s" || args[2] == "seconds") {
+        if (args[2] == "s" || args[2] == "seconds" || args[2] == "second") {
           triggerTime = currentTime + parseInt(args[1]);
+          var unit = "seconds";
         }
-        else if (args[2] == "m" || args[2] == "minutes") {
+        else if (args[2] == "m" || args[2] == "minutes" || args[2] == "minute") {
           triggerTime = currentTime + (parseInt(args[1]) * 60);
+          var unit = "minutes";
         }
-        else if (args[2] == "h" || args[2] == "hours") {
+        else if (args[2] == "h" || args[2] == "hours" || args[2] == "hour") {
           triggerTime = currentTime + (parseInt(args[1]) * 3600);
+          var unit = "hours";
         }
         else {
           await sendMessage("Invalid unit. Valid units are (s)econds, (m)inutes, and (h)ours.");
           return;
         }
 
-        console.log(args);
+        if (args[0].toString().length >= 12) {
+          await sendMessage("Timer name too long. Must be 12 characters or less.");
+          return;
+        }
+        else if (parseInt(args[1]) < 30 && unit == "seconds") {
+          await sendMessage("Invalid time. Time must be above 30 seconds.");
+          return;
+        }
+        else if (parseInt(args[1]) < 0) {
+          await sendMessage("Invalid time. Time must be a positive integer.");
+          return;
+        }
+        else if (args[1].toString().length > 12) {
+          await sendMessage("Invalid time. Time argument must contain 12 digits or less.");
+          return;
+        }
+
+        //console.log(args);
         console.log("Attempting to connect to database...");
 
         const con = await createDatabaseConnection();
@@ -273,6 +348,25 @@ async function onContactMessageReceived(message) {
         } catch (err) {
           console.log(err);
         }
+
+        const checkExistingTimers = await con.query(
+          `SELECT * FROM Timers where TIMER_NAME=\'${args[0]}\' and CONTACT_PUBLIC_KEY_PREF=\'${message.pubKeyPrefix}\';`
+        );
+        const checkNumberOfTimers = await con.query(
+          `SELECT * FROM Timers where CONTACT_PUBLIC_KEY_PREF=\'${message.pubKeyPrefix}\';`
+        );
+        if (checkExistingTimers[0].length > 0) {
+          await sendMessage("Timer with that name already exists.");
+          con.end();
+          console.log("Ended database connection.");
+          return;
+        }
+        else if (checkNumberOfTimers[0].length > 4) {
+          await sendMessage("You have reached the maximum number of timers (5).");
+          con.end();
+          console.log("Ended database connection.");
+          return;
+        }
         query = `INSERT INTO Timers VALUES (\'${args[0]}\', \'${message.pubKeyPrefix}\', ${triggerTime})`;
         try {
           await con.query(query)// fields contains extra meta data about results, if available
@@ -284,10 +378,10 @@ async function onContactMessageReceived(message) {
           'SELECT * FROM Timers;'
         );
 
-        console.log(results); // results contains rows returned by server
-        console.log(fields);
+        //console.log(results); // results contains rows returned by server
 
         con.end();
+        await sendMessage("Timer \"" + args[0] + "\" set for " + args[1] + " " + unit + " Created successfully..");
         console.log("Ended database connection.");
 
         fetchTimers();
