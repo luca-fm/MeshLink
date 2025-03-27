@@ -5,11 +5,30 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - NODENAME=Meshlink Alpha
-      - IP=270.0.0.0
-      - LATITUDE=0
-      - LONGITUDE=0
-      - PORT=5000
-      - PREFIX=/
-      - FLOOD_ADVERT_ON_START=false
+      DBUSER: dbuser
+      DBPASS: dbpass
+      DBHOST: db
+      DBNAME: meshlinkdb
+      NODENAME: Meshlink Alpha
+      IP: 270.0.0.0
+      LATITUDE: 0
+      LONGITUDE: 0
+      PORT: 5000
+      PREFIX: /
+      FLOOD_ADVERT_ON_START: false
+    volumes:
+      - meshlink:/data
     restart: unless-stopped
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: db
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: dbpass
+      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    volumes:
+      - db:/var/lib/mysql
+volumes:
+  db:
+  meshlink:
