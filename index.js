@@ -6,14 +6,17 @@
 import TCPConnection from "@liamcottle/meshcore.js/src/connection/tcp_connection.js";
 import Constants from "@liamcottle/meshcore.js/src/constants.js";
 import mysql from 'mysql2/promise';
+import dotenvx from 'dotenv';
+dotenvx.config();
 
 //dotenv.config();
 
 
-var enableFlood = process.env.FLOOD_ADVERT_ON_START;
+//var enableFlood = process.env.FLOOD_ADVERT_ON_START;
+var enableFlood = process.env.FLOOD_ADVERT_ON_START === 'true' || process.env.FLOOD_ADVERT_ON_START === 'TRUE' || process.env.FLOOD_ADVERT_ON_START === 'yes' || process.env.FLOOD_ADVERT_ON_START === 'YES';
 var pref = process.env.PREFIX;
 var ver = "0.2.0";
-var msver = "1.4.1";
+var msver = "1.12.0";
 var lat = process.env.LATITUDE;
 var lon = process.env.LONGITUDE;
 var ip = process.env.IP;
@@ -104,8 +107,14 @@ connection.on("connected", async () => {
   console.log("Set advert name to " + nodename);
   await connection.setAdvertName(nodename);
 
-  console.log("Set advert lat/lon to " + lat + ", " + lon);
-  await connection.setAdvertLatLong(lat * 1000000, lon * 1000000); //Null Island Protection Program
+  console.log("Syncing time with MeshCore device...");
+  try {
+    await connection.setDeviceTime(Math.floor(Date.now() / 1000));
+  }  catch (e) {
+    console.log("Failed to sync time with device. Time may already be in sync. Error: " + e);
+  }
+  var current_time = await connection.getDeviceTime();
+  console.log("Current device time (unix epoch): " + current_time);
 
   if (enableFlood == true) {
     console.log("Sending flood advert...\n");
@@ -114,6 +123,7 @@ connection.on("connected", async () => {
   else {
     console.log("Flood advert on start disabled. Sending zero hop advert...\n");
     await connection.sendZeroHopAdvert();
+    console.log("Zero hop advert sent.\n");
   }
 
   fetchTimers();
